@@ -2,6 +2,8 @@
 #include "std_msgs/String.h"
 
 #include <sstream>
+#include <string>
+#include <uart_handler.h>
 
 /**
  * This tutorial demonstrates simple sending of messages over the ROS system.
@@ -21,7 +23,19 @@ int main(int argc, char **argv) {
    * The first NodeHandle constructed will fully initialize this node, and the last
    * NodeHandle destructed will close down the node.
    */
-  ros::NodeHandle n;
+  ros::NodeHandle nh("~");
+
+  /**
+   * Initialize the uart handler with the provided port.
+   */
+  std::string port;
+  nh.getParam("uart_port", port);
+  ROS_INFO("%s", port.c_str());
+
+  UartHandler uart(port);
+  if (!uart.isOpen()) {
+    throw serial::PortNotOpenedException(port.c_str());
+  }
 
   /**
    * The advertise() function is how you tell ROS that you want to
@@ -40,7 +54,7 @@ int main(int argc, char **argv) {
    * than we can send them, the number here specifies how many messages to
    * buffer up before throwing some away.
    */
-  ros::Publisher chatter_pub = n.advertise<std_msgs::String>("testing", 1000);
+  ros::Publisher chatter_pub = nh.advertise<std_msgs::String>("testing", 1000);
 
   ros::Rate loop_rate(100);
 
@@ -56,7 +70,7 @@ int main(int argc, char **argv) {
     std_msgs::String msg;
 
     std::stringstream ss;
-    ss << "hello world " << count;
+    ss << "hello world! " << count << " " << uart.isOpen() << "...";
     msg.data = ss.str();
 
     ROS_INFO("%s", msg.data.c_str());

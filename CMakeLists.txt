@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.1.0)
 project(monarc_uart_driver)
+
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -7,6 +9,7 @@ project(monarc_uart_driver)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  serial
 )
 
 ## System dependencies are found with CMake's conventions
@@ -111,8 +114,8 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -128,6 +131,9 @@ include_directories(
 
 # Declare a C++ executable
 add_executable(monarc_uart_driver_node src/monarc_uart_driver_node.cpp)
+target_sources(monarc_uart_driver_node PUBLIC
+  src/uart_handler.cpp
+)
 
 # Add cmake target dependencies of the executable
 # same as for the library above
