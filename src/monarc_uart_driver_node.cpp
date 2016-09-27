@@ -1,13 +1,12 @@
+#include <sstream>
+#include <string>
+
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
-#include <sstream>
-#include <string>
-#include <uart_handler.h>
+#include "uart_handler.h"
+#include "api.pb.h"
 
-/**
- * This tutorial demonstrates simple sending of messages over the ROS system.
- */
 int main(int argc, char **argv) {
   /**
    * The ros::init() function needs to see argc and argv so that it can perform
@@ -69,8 +68,17 @@ int main(int argc, char **argv) {
      */
     std_msgs::String msg;
 
+    monarcpb::NavCPUToSysCtrl message;
+    monarcpb::NavCPUToSysCtrl_Telemetry *telemetry = message.mutable_telemetry();
+    telemetry->set_altitude(count);
+    telemetry->set_atmospheric_pressure(count * 2);
+    monarcpb::NavCPUToSysCtrl_AnalogSensors *sensors = message.mutable_analog_sensors();
+    sensors->set_current(count);
+    sensors->set_voltage(count * 2);
+
     std::stringstream ss;
-    ss << "hello world! " << count << " " << uart.isOpen() << "...";
+    ss << "hello world! " << " " << uart.isOpen() << "...";
+    message.SerializeToOstream(&ss);
     msg.data = ss.str();
 
     ROS_INFO("%s", msg.data.c_str());

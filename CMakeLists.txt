@@ -108,6 +108,15 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
+####################
+## Protobuf Build ##
+####################
+
+find_package(Protobuf REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS monarcpb/api.proto)
+
 ###########
 ## Build ##
 ###########
@@ -133,6 +142,8 @@ include_directories(
 add_executable(monarc_uart_driver_node src/monarc_uart_driver_node.cpp)
 target_sources(monarc_uart_driver_node PUBLIC
   src/uart_handler.cpp
+  ${PROTO_SRCS}
+  ${PROTO_HDRS}
 )
 
 # Add cmake target dependencies of the executable
@@ -142,6 +153,7 @@ add_dependencies(monarc_uart_driver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${c
 # Specify libraries to link a library or executable target against
 target_link_libraries(monarc_uart_driver_node
   ${catkin_LIBRARIES}
+  ${PROTOBUF_LIBRARIES}
 )
 
 #############
