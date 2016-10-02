@@ -16,8 +16,8 @@ public:
     uart(port, BAUD_RATE, timeout) 
     {};
 
-  inline void write(const std::string &data);
-  inline std::string read();
+  void write(const std::string &data);
+  std::string read();
 
   inline bool isOpen() const { return uart.isOpen(); }
 private:
