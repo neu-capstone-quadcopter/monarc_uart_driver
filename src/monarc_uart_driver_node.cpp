@@ -3,6 +3,7 @@
 #include <boost/thread.hpp>
 
 #include "ros/ros.h"
+#include "std_msgs/Int32.h"
 #include "std_msgs/String.h"
 
 #include "uart_handler.h"
@@ -14,7 +15,7 @@ void uart_reader(UartHandler* uart) {
   /*
    * Advertise on a group of topics.
    */
-  ros::Publisher chatter_pub = nh.advertise<std_msgs::String>("testing", 1000);
+  ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 1000);
 
   while (ros::ok()) {
     /*
@@ -37,13 +38,13 @@ void uart_reader(UartHandler* uart) {
     /*
      * Distribute information from protobuf to ROS topics.
      */
-    std_msgs::String msg;
-    std::stringstream ss;
-    ss << "hello world! " << " " << uart->isOpen() << "...";
-    message.SerializeToOstream(&ss);
-    msg.data = ss.str();
+    if (message.has_telemetry()) {
+      const monarcpb::SysCtrlToNavCPU_Telemetry telemetry = message.telemetry();
 
-    chatter_pub.publish(msg);
+      std_msgs::Int32 atmospheric_pressure;
+      atmospheric_pressure.data = telemetry.atmospheric_pressure();
+      atmospheric_pressure_pub.publish(atmospheric_pressure);
+    }
   }
 }
 
