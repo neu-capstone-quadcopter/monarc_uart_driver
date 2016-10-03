@@ -8,7 +8,7 @@
 #include "serial/serial.h"
 
 const uint32_t BAUD_RATE = 115200; 
-const serial::Timeout timeout = serial::Timeout::simpleTimeout(20);
+const serial::Timeout timeout = serial::Timeout::simpleTimeout(100);
 
 class UartHandler {
 public:
