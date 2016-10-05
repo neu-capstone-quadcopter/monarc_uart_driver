@@ -155,7 +155,7 @@ add_dependencies(monarc_uart_driver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${c
 # Specify libraries to link a library or executable target against
 target_link_libraries(monarc_uart_driver_node
   ${catkin_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
+  ${PROTOBUF_LITE_LIBRARIES}
 )
 
 #############

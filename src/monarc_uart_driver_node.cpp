@@ -33,7 +33,6 @@ void uart_reader(UartHandler* uart) {
     if (!message.ParseFromString(data)) {
       continue;
     }
-    ROS_INFO("Received from UART: %s", message.DebugString().c_str());
 
     /*
      * Distribute information from protobuf to ROS topics.
