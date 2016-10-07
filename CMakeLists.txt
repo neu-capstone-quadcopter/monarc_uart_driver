@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.1.0)
 project(monarc_uart_driver)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+set(PROTOBUF_PROTOC_EXECUTABLE "/usr/local/bin/protoc")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
