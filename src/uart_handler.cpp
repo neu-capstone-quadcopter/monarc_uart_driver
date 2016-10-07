@@ -11,5 +11,5 @@ void UartHandler::write(const std::string &data) {
 std::string UartHandler::read() {
   uint16_t len;
   uart.read((uint8_t*) &len, 2);
-  return uart.read(ntohs(len));
+  return uart.read(ntohs(len)).substr(0, len);
 }

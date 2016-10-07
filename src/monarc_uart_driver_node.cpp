@@ -23,6 +23,7 @@ void uart_reader(UartHandler* uart) {
      */
     std::string data = uart->read();
     if (data.length() == 0) {
+      ROS_INFO("I heard nothing");
       continue;
     }
 
@@ -31,6 +32,7 @@ void uart_reader(UartHandler* uart) {
      */
     monarcpb::SysCtrlToNavCPU message;
     if (!message.ParseFromString(data)) {
+      ROS_INFO("I heard something I could not parse [%s]", data.c_str());
       continue;
     }
 
