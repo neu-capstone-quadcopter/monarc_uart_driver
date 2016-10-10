@@ -97,6 +97,9 @@ int main(int argc, char **argv) {
      */
     ros::spinOnce();
 
+    monarcpb::NavCPUToSysCtrl_Telemetry* telemetry = nav_cpu_state.mutable_telemetry();
+    telemetry->set_gps(143);
+
     /*
      * Send nav_cpu_state over UART.
      */
