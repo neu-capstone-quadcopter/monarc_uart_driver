@@ -90,6 +90,26 @@ std::string get_uart_port() {
   return port;
 }
 
+bool is_test_mode() {
+  ros::NodeHandle param_handle("~");
+
+  bool test_mode;
+  param_handle.getParam("test_mode", test_mode);
+  return test_mode;
+}
+
+/**
+ * Test mode will continuously send a series of known bytes on the UART port.
+ */
+void run_test_mode(UartHandler* uart) {
+  std::string test_str = std::string(30, 'A');
+  ros::Rate loop_rate(100);
+  while (true) {
+    uart->write(test_str);
+    loop_rate.sleep();
+  }
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "monarc_uart_driver");
   ros::NodeHandle nh;
@@ -103,6 +123,14 @@ int main(int argc, char **argv) {
     throw serial::PortNotOpenedException(port.c_str());
   }
   ROS_INFO("monarc_uart_driver using UART port: %s", port.c_str());
+
+  /**
+   * Check if in test mode.
+   */
+  if (is_test_mode()) {
+    run_test_mode(&uart);
+    return 0;
+  }
 
   /*
    * Launch UART reader thread.
