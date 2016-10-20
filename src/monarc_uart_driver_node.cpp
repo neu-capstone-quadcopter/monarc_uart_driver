@@ -75,8 +75,10 @@ void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
     default:
       throw std::invalid_argument("unexpected NavSatStatus value");
   }
-  gps->set_latitude(navSatFix->latitude);
-  gps->set_longitude(navSatFix->longitude);
+  gps->set_latitude(987.6);
+  //gps->set_latitude(navSatFix->latitude);
+  gps->set_longitude(123.4);
+  //gps->set_longitude(navSatFix->longitude);
   gps->set_altitude(navSatFix->altitude);
 }
 
