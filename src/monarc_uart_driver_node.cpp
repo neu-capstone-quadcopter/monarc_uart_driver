@@ -1,10 +1,12 @@
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <boost/thread.hpp>
 
 #include "ros/ros.h"
 #include "std_msgs/Int32.h"
-#include "std_msgs/String.h"
+#include "sensor_msgs/NavSatFix.h"
+#include "sensor_msgs/NavSatStatus.h"
 
 #include "uart_handler.h"
 #include "api.pb.h"
@@ -54,8 +56,28 @@ void uart_reader(UartHandler* uart) {
  */
 monarcpb::NavCPUToSysCtrl nav_cpu_state;
 
-void chatterCallback(const std_msgs::String::ConstPtr& msg) {
-  ROS_INFO("I heard: [%s]", msg->data.c_str());
+void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
+  monarcpb::NavCPUToSysCtrl_Telemetry* telemetry = nav_cpu_state.mutable_telemetry();
+  monarcpb::GPSFix* gps = telemetry->mutable_gps();
+  switch (navSatFix->status.status) {
+    case sensor_msgs::NavSatStatus::STATUS_NO_FIX:
+      gps->set_status(monarcpb::GPSFix_Status_NO_FIX);
+      break;
+    case sensor_msgs::NavSatStatus::STATUS_FIX:
+      gps->set_status(monarcpb::GPSFix_Status_FIX);
+      break;
+    case sensor_msgs::NavSatStatus::STATUS_SBAS_FIX:
+      gps->set_status(monarcpb::GPSFix_Status_SBAS_FIX);
+      break;
+    case sensor_msgs::NavSatStatus::STATUS_GBAS_FIX:
+      gps->set_status(monarcpb::GPSFix_Status_GBAS_FIX);
+      break;
+    default:
+      throw std::invalid_argument("unexpected NavSatStatus value");
+  }
+  gps->set_latitude(navSatFix->latitude);
+  gps->set_longitude(navSatFix->longitude);
+  gps->set_altitude(navSatFix->altitude);
 }
 
 std::string get_uart_port() {
@@ -88,7 +110,7 @@ int main(int argc, char **argv) {
   /*
    * Subscribe to all necessary topics, each with a queue_size of 1
    */
-  ros::Subscriber sub = nh.subscribe("chatter", 1, chatterCallback);
+  ros::Subscriber sub = nh.subscribe("fix", 1, gpsFixCallback);
 
   ros::Rate loop_rate(100);
   while (ros::ok()) {
@@ -96,9 +118,6 @@ int main(int argc, char **argv) {
      * Process all callbacks, which will populate nav_cpu_state.
      */
     ros::spinOnce();
-
-    monarcpb::NavCPUToSysCtrl_Telemetry* telemetry = nav_cpu_state.mutable_telemetry();
-    telemetry->set_gps(143);
 
     /*
      * Send nav_cpu_state over UART.
