@@ -82,29 +82,31 @@ void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
   gps->set_altitude(navSatFix->altitude);
 }
 
-std::string get_uart_port() {
+struct command_line_params {
+  std::string uart_port;
+  int baud_rate;
+
+  bool is_test_mode;
+};
+
+command_line_params get_params() {
   ros::NodeHandle param_handle("~");
 
-  std::string port;
-  param_handle.getParam("uart_port", port);
-  return port;
-}
-
-bool is_test_mode() {
-  ros::NodeHandle param_handle("~");
-
-  bool test_mode;
-  param_handle.getParam("test_mode", test_mode);
-  return test_mode;
+  command_line_params params;
+  param_handle.param("uart_port", params.uart_port, default_uart_port);
+  param_handle.param("baud_rate", params.baud_rate, default_baud_rate);
+  param_handle.param("test_mode", params.is_test_mode, false);
+  return params;
 }
 
 /**
  * Test mode will continuously send a series of known bytes on the UART port.
  */
 void run_test_mode(UartHandler* uart) {
+  ROS_INFO("Running testing mode");
   std::string test_str = std::string(30, 'A');
   ros::Rate loop_rate(100);
-  while (true) {
+  while (ros::ok()) {
     uart->write(test_str);
     loop_rate.sleep();
   }
@@ -114,20 +116,22 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "monarc_uart_driver");
   ros::NodeHandle nh;
 
+  command_line_params params = get_params();
+
   /**
    * Initialize the uart handler with the provided port.
    */
-  std::string port = get_uart_port();
-  UartHandler uart(port);
+  UartHandler uart(params.uart_port, params.baud_rate);
   if (!uart.isOpen()) {
-    throw serial::PortNotOpenedException(port.c_str());
+    throw serial::PortNotOpenedException(params.uart_port.c_str());
   }
-  ROS_INFO("monarc_uart_driver using UART port: %s", port.c_str());
+  ROS_INFO("monarc_uart_driver using UART port: %s", params.uart_port.c_str());
+  ROS_INFO("monarc_uart_driver using baud rate: %d", params.baud_rate);
 
   /**
    * Check if in test mode.
    */
-  if (is_test_mode()) {
+  if (params.is_test_mode) {
     run_test_mode(&uart);
     return 0;
   }

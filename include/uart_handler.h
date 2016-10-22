@@ -7,14 +7,14 @@
 
 #include "serial/serial.h"
 
-const uint32_t BAUD_RATE = 230400; 
-//const uint32_t BAUD_RATE = 115200; 
-const serial::Timeout timeout = serial::Timeout::simpleTimeout(50);
+const std::string     default_uart_port = "/dev/ttyHS1";
+const int             default_baud_rate = 115200;
+const serial::Timeout default_timeout = serial::Timeout::simpleTimeout(50);
 
 class UartHandler {
 public:
-  UartHandler(const std::string &port) : 
-    uart(port, BAUD_RATE, timeout) 
+  UartHandler(const std::string &port, const uint32_t baud_rate) :
+    uart(port, baud_rate, default_timeout)
     {};
 
   void write(const std::string &data);
