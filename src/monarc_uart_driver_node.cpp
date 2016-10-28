@@ -12,7 +12,7 @@
 #include "api.pb.h"
 
 void uart_reader(UartHandler* uart) {
-  ros::NodeHandle nh("~");
+  ros::NodeHandle nh;
 
   /*
    * Advertise on a group of topics.
