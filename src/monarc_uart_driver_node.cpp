@@ -82,6 +82,25 @@ void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
   gps->set_altitude(navSatFix->altitude);
 }
 
+void flightCommandMessage(const int ok_count) {
+  monarcpb::NavCPUToSysCtrl_FlightControl* flight_control = nav_cpu_state.mutable_control();
+  int valueToWrite;
+  if (ok_count == 500) {
+    if (flight_control->pitch() == 1000) {
+      valueToWrite = 1900;
+    } else {
+      valueToWrite = 1000;
+    }
+  } else {
+    valueToWrite = flight_control->pitch();
+  }
+
+  flight_control->set_pitch(valueToWrite);
+  flight_control->set_roll(valueToWrite);
+  flight_control->set_yaw(valueToWrite);
+  flight_control->set_throttle(valueToWrite);
+}
+
 struct command_line_params {
   std::string uart_port;
   int baud_rate;
@@ -147,7 +166,18 @@ int main(int argc, char **argv) {
   ros::Subscriber sub = nh.subscribe("fix", 1, gpsFixCallback);
 
   ros::Rate loop_rate(100);
+
+  int ok_count = 0;
+
   while (ros::ok()) {
+    ok_count++;
+
+    /*
+     * Write dummy command message data, changing every so often.
+    */
+    flightCommandMessage(ok_count);
+    ok_count = (ok_count == 500) ? 0 : ok_count;
+
     /*
      * Process all callbacks, which will populate nav_cpu_state.
      */
