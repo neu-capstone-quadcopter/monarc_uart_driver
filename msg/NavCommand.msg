@@ -1,0 +1,2 @@
+int8 command_number
+sensor_msgs/NavSatFix command_location
