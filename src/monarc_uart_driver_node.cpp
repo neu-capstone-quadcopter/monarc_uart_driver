@@ -5,6 +5,7 @@
 
 #include "ros/ros.h"
 #include "std_msgs/Int32.h"
+#include "sensor_msgs/Imu.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/NavSatStatus.h"
 
@@ -17,7 +18,9 @@ void uart_reader(UartHandler* uart) {
   /*
    * Advertise on a group of topics.
    */
-  ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 1000);
+  ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 100);
+  ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("imu_data", 100);
+  ros::Publisher ultrasound_altitude_pub = nh.advertise<std_msgs::Int32>("ultrasound_altitude", 100);
 
   while (ros::ok()) {
     /*
@@ -47,6 +50,23 @@ void uart_reader(UartHandler* uart) {
       std_msgs::Int32 atmospheric_pressure;
       atmospheric_pressure.data = telemetry.atmospheric_pressure();
       atmospheric_pressure_pub.publish(atmospheric_pressure);
+
+      sensor_msgs::Imu imu_data;
+      imu_data.header.seq = 1;
+      imu_data.header.stamp.sec = 100;
+      imu_data.header.stamp.nsec = 100000;
+      imu_data.header.frame_id = "no frame";
+
+      imu_data.orientation.x = (double) telemetry.magnetometer().x();
+      imu_data.orientation.y = (double) telemetry.magnetometer().y();
+      imu_data.orientation.z = (double) telemetry.magnetometer().z();
+      imu_data.orientation.w = -1;
+      imu_data.orientation_covariance[0] = -1;
+
+      imu_data.angular_velocity.x = (double) telemetry.gyroscope().x();
+      imu_data.angular_velocity.y = (double) telemetry.gyroscope().y();
+      imu_data.angular_velocity.z = (double) telemetry.gyroscope().z();
+      imu_data.angular_velocity_covariance[0] = -1;
     }
   }
 }
