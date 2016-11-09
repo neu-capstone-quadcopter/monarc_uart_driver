@@ -3,11 +3,14 @@
 #include <string>
 #include <boost/thread.hpp>
 
+#include "tf/transform_datatypes.h"
+
 #include "ros/ros.h"
 #include "std_msgs/Int32.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/NavSatStatus.h"
+#include "monarc_uart_driver/NavCommand.h"
 
 #include "uart_handler.h"
 #include "api.pb.h"
@@ -21,6 +24,7 @@ void uart_reader(UartHandler* uart) {
   ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 100);
   ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("imu_data", 100);
   ros::Publisher ultrasound_altitude_pub = nh.advertise<std_msgs::Int32>("ultrasound_altitude", 100);
+  ros::Publisher nav_command_pub = nh.advertise<monarc_uart_driver::NavCommand>("nav_command", 100);
 
   while (ros::ok()) {
     /*
@@ -47,26 +51,54 @@ void uart_reader(UartHandler* uart) {
     if (message.has_telemetry()) {
       const monarcpb::SysCtrlToNavCPU_Telemetry telemetry = message.telemetry();
 
+      /*
+       * Read and publish atmospheric pressure
+       */
       std_msgs::Int32 atmospheric_pressure;
       atmospheric_pressure.data = telemetry.atmospheric_pressure();
       atmospheric_pressure_pub.publish(atmospheric_pressure);
 
+      /*
+       * Read and publish all IMU data
+       */
       sensor_msgs::Imu imu_data;
-      imu_data.header.seq = 1;
-      imu_data.header.stamp.sec = 100;
-      imu_data.header.stamp.nsec = 100000;
-      imu_data.header.frame_id = "no frame";
 
-      imu_data.orientation.x = (double) telemetry.magnetometer().x();
-      imu_data.orientation.y = (double) telemetry.magnetometer().y();
-      imu_data.orientation.z = (double) telemetry.magnetometer().z();
-      imu_data.orientation.w = -1;
+      imu_data.orientation = tf::createQuaternionMsgFromRollPitchYaw((double) telemetry.magnetometer().x(),
+                                                                     (double) telemetry.magnetometer().y(),
+                                                                     (double) telemetry.magnetometer().z());
       imu_data.orientation_covariance[0] = -1;
 
       imu_data.angular_velocity.x = (double) telemetry.gyroscope().x();
       imu_data.angular_velocity.y = (double) telemetry.gyroscope().y();
       imu_data.angular_velocity.z = (double) telemetry.gyroscope().z();
       imu_data.angular_velocity_covariance[0] = -1;
+
+
+      imu_data.linear_acceleration.x = (double) telemetry.accelerometer().x();
+      imu_data.linear_acceleration.y = (double) telemetry.accelerometer().y();
+      imu_data.linear_acceleration.z = (double) telemetry.accelerometer().z();
+      imu_data.linear_acceleration_covariance[0] = -1;
+
+      imu_pub.publish(imu_data);
+
+      /*
+       * Read and publish ultrasonic altitude data
+       */
+      std_msgs::Int32 ultrasound_altitude;
+      ultrasound_altitude.data = telemetry.altitude();
+      ultrasound_altitude_pub.publish(ultrasound_altitude);
+    }
+
+    if (message.has_command()) {
+        const monarcpb::SysCtrlToNavCPU_NavigationCommand command = message.command();
+
+        monarc_uart_driver::NavCommand nav_command;
+        nav_command.command_number = command.mission_num();
+
+
+        nav_command.command_location.latitude = command.gps_location().latitude();
+        nav_command.command_location.longitude = command.gps_location().longitude();
+        nav_command.command_location.altitude = command.gps_location().altitude();
     }
   }
 }
@@ -102,7 +134,7 @@ void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
   gps->set_altitude(navSatFix->altitude);
 }
 
-void flightCommandMessage(const int ok_count) {
+void flightControlMessage(const int ok_count) {
   monarcpb::NavCPUToSysCtrl_FlightControl* flight_control = nav_cpu_state.mutable_control();
   int valueToWrite;
   if (ok_count == 500) {
@@ -195,7 +227,7 @@ int main(int argc, char **argv) {
     /*
      * Write dummy command message data, changing every so often.
     */
-    flightCommandMessage(ok_count);
+    flightControlMessage(ok_count);
     ok_count = (ok_count == 500) ? 0 : ok_count;
 
     /*
