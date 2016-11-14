@@ -46,53 +46,64 @@ void uart_reader(UartHandler* uart) {
     }
 
     /*
-     * Distribute information from protobuf to ROS topics.
+     * Distribute information from protobuf to ROS topics. Also grab the time for the Headers.
      */
+    ros::Time time_stamp = ros::Time::now();
+
     if (message.has_telemetry()) {
       const monarcpb::SysCtrlToNavCPU_Telemetry telemetry = message.telemetry();
 
       /*
        * Read and publish atmospheric pressure
        */
-      std_msgs::Int32 atmospheric_pressure;
-      atmospheric_pressure.data = telemetry.atmospheric_pressure();
-      atmospheric_pressure_pub.publish(atmospheric_pressure);
+      if (telemetry.atmospheric_pressure() != 0) {
+          std_msgs::Int32 atmospheric_pressure;
+          atmospheric_pressure.data = telemetry.atmospheric_pressure();
+          atmospheric_pressure_pub.publish(atmospheric_pressure);
+      }
 
       /*
        * Read and publish all IMU data
        */
-      sensor_msgs::Imu imu_data;
+      if (telemetry.has_accelerometer() && telemetry.has_gyroscope() && telemetry.has_magnetometer()) {
+        sensor_msgs::Imu imu_data;
 
-      imu_data.orientation = tf::createQuaternionMsgFromRollPitchYaw((double) telemetry.magnetometer().x(),
+        imu_data.header.stamp = time_stamp;
+
+        imu_data.orientation = tf::createQuaternionMsgFromRollPitchYaw((double) telemetry.magnetometer().x(),
                                                                      (double) telemetry.magnetometer().y(),
                                                                      (double) telemetry.magnetometer().z());
-      imu_data.orientation_covariance[0] = -1;
+        imu_data.orientation_covariance[0] = -1;
 
-      imu_data.angular_velocity.x = (double) telemetry.gyroscope().x();
-      imu_data.angular_velocity.y = (double) telemetry.gyroscope().y();
-      imu_data.angular_velocity.z = (double) telemetry.gyroscope().z();
-      imu_data.angular_velocity_covariance[0] = -1;
+        imu_data.angular_velocity.x = (double) telemetry.gyroscope().x();
+        imu_data.angular_velocity.y = (double) telemetry.gyroscope().y();
+        imu_data.angular_velocity.z = (double) telemetry.gyroscope().z();
+        imu_data.angular_velocity_covariance[0] = -1;
 
+        imu_data.linear_acceleration.x = (double) telemetry.accelerometer().x();
+        imu_data.linear_acceleration.y = (double) telemetry.accelerometer().y();
+        imu_data.linear_acceleration.z = (double) telemetry.accelerometer().z();
+        imu_data.linear_acceleration_covariance[0] = -1;
 
-      imu_data.linear_acceleration.x = (double) telemetry.accelerometer().x();
-      imu_data.linear_acceleration.y = (double) telemetry.accelerometer().y();
-      imu_data.linear_acceleration.z = (double) telemetry.accelerometer().z();
-      imu_data.linear_acceleration_covariance[0] = -1;
-
-      imu_pub.publish(imu_data);
+        imu_pub.publish(imu_data);
+      }
 
       /*
        * Read and publish ultrasonic altitude data
        */
-      std_msgs::Int32 ultrasound_altitude;
-      ultrasound_altitude.data = telemetry.altitude();
-      ultrasound_altitude_pub.publish(ultrasound_altitude);
+      if (telemetry.altitude() != 0) {
+        std_msgs::Int32 ultrasound_altitude;
+        ultrasound_altitude.data = telemetry.altitude();
+        ultrasound_altitude_pub.publish(ultrasound_altitude);
+      }
     }
 
     if (message.has_command()) {
         const monarcpb::SysCtrlToNavCPU_NavigationCommand command = message.command();
-
         monarc_uart_driver::NavCommand nav_command;
+
+        nav_command.command_location.header.stamp = time_stamp;
+        
         nav_command.command_number = command.mission_num();
 
 
