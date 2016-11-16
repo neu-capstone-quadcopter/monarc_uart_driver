@@ -3,10 +3,14 @@
 #include <string>
 #include <boost/thread.hpp>
 
+#include "tf/transform_datatypes.h"
+
 #include "ros/ros.h"
 #include "std_msgs/Int32.h"
+#include "sensor_msgs/Imu.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/NavSatStatus.h"
+#include "monarc_uart_driver/NavCommand.h"
 
 #include "uart_handler.h"
 #include "api.pb.h"
@@ -17,7 +21,10 @@ void uart_reader(UartHandler* uart) {
   /*
    * Advertise on a group of topics.
    */
-  ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 1000);
+  ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 100);
+  ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("imu_data", 100);
+  ros::Publisher ultrasound_altitude_pub = nh.advertise<std_msgs::Int32>("ultrasound_altitude", 100);
+  ros::Publisher nav_command_pub = nh.advertise<monarc_uart_driver::NavCommand>("nav_command", 100);
 
   while (ros::ok()) {
     /*
@@ -39,14 +46,70 @@ void uart_reader(UartHandler* uart) {
     }
 
     /*
-     * Distribute information from protobuf to ROS topics.
+     * Distribute information from protobuf to ROS topics. Also grab the time for the Headers.
      */
+    ros::Time time_stamp = ros::Time::now();
+
     if (message.has_telemetry()) {
       const monarcpb::SysCtrlToNavCPU_Telemetry telemetry = message.telemetry();
 
-      std_msgs::Int32 atmospheric_pressure;
-      atmospheric_pressure.data = telemetry.atmospheric_pressure();
-      atmospheric_pressure_pub.publish(atmospheric_pressure);
+      /*
+       * Read and publish atmospheric pressure
+       */
+      if (telemetry.atmospheric_pressure() != 0) {
+          std_msgs::Int32 atmospheric_pressure;
+          atmospheric_pressure.data = telemetry.atmospheric_pressure();
+          atmospheric_pressure_pub.publish(atmospheric_pressure);
+      }
+
+      /*
+       * Read and publish all IMU data
+       */
+      if (telemetry.has_accelerometer() && telemetry.has_gyroscope() && telemetry.has_magnetometer()) {
+        sensor_msgs::Imu imu_data;
+
+        imu_data.header.stamp = time_stamp;
+
+        imu_data.orientation = tf::createQuaternionMsgFromRollPitchYaw((double) telemetry.magnetometer().x(),
+                                                                     (double) telemetry.magnetometer().y(),
+                                                                     (double) telemetry.magnetometer().z());
+        imu_data.orientation_covariance[0] = -1;
+
+        imu_data.angular_velocity.x = (double) telemetry.gyroscope().x();
+        imu_data.angular_velocity.y = (double) telemetry.gyroscope().y();
+        imu_data.angular_velocity.z = (double) telemetry.gyroscope().z();
+        imu_data.angular_velocity_covariance[0] = -1;
+
+        imu_data.linear_acceleration.x = (double) telemetry.accelerometer().x();
+        imu_data.linear_acceleration.y = (double) telemetry.accelerometer().y();
+        imu_data.linear_acceleration.z = (double) telemetry.accelerometer().z();
+        imu_data.linear_acceleration_covariance[0] = -1;
+
+        imu_pub.publish(imu_data);
+      }
+
+      /*
+       * Read and publish ultrasonic altitude data
+       */
+      if (telemetry.altitude() != 0) {
+        std_msgs::Int32 ultrasound_altitude;
+        ultrasound_altitude.data = telemetry.altitude();
+        ultrasound_altitude_pub.publish(ultrasound_altitude);
+      }
+    }
+
+    if (message.has_command()) {
+        const monarcpb::SysCtrlToNavCPU_NavigationCommand command = message.command();
+        monarc_uart_driver::NavCommand nav_command;
+
+        nav_command.command_location.header.stamp = time_stamp;
+        
+        nav_command.command_number = command.mission_num();
+
+
+        nav_command.command_location.latitude = command.gps_location().latitude();
+        nav_command.command_location.longitude = command.gps_location().longitude();
+        nav_command.command_location.altitude = command.gps_location().altitude();
     }
   }
 }
@@ -80,6 +143,25 @@ void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
   gps->set_longitude(123.4);
   //gps->set_longitude(navSatFix->longitude);
   gps->set_altitude(navSatFix->altitude);
+}
+
+void flightControlMessage(const int ok_count) {
+  monarcpb::NavCPUToSysCtrl_FlightControl* flight_control = nav_cpu_state.mutable_control();
+  int valueToWrite;
+  if (ok_count == 500) {
+    if (flight_control->pitch() == 1000) {
+      valueToWrite = 1900;
+    } else {
+      valueToWrite = 1000;
+    }
+  } else {
+    valueToWrite = flight_control->pitch();
+  }
+
+  flight_control->set_pitch(valueToWrite);
+  flight_control->set_roll(valueToWrite);
+  flight_control->set_yaw(valueToWrite);
+  flight_control->set_throttle(valueToWrite);
 }
 
 struct command_line_params {
@@ -147,7 +229,18 @@ int main(int argc, char **argv) {
   ros::Subscriber sub = nh.subscribe("fix", 1, gpsFixCallback);
 
   ros::Rate loop_rate(100);
+
+  int ok_count = 0;
+
   while (ros::ok()) {
+    ok_count++;
+
+    /*
+     * Write dummy command message data, changing every so often.
+    */
+    flightControlMessage(ok_count);
+    ok_count = (ok_count == 500) ? 0 : ok_count;
+
     /*
      * Process all callbacks, which will populate nav_cpu_state.
      */
