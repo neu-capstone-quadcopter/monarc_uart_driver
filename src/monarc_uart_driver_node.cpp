@@ -10,6 +10,7 @@
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/NavSatStatus.h"
+#include "monarc_uart_driver/FlightControl.h"
 #include "monarc_uart_driver/NavCommand.h"
 
 #include "uart_handler.h"
@@ -145,23 +146,12 @@ void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
   gps->set_altitude(navSatFix->altitude);
 }
 
-void flightControlMessage(const int ok_count) {
-  monarcpb::NavCPUToSysCtrl_FlightControl* flight_control = nav_cpu_state.mutable_control();
-  int valueToWrite;
-  if (ok_count == 500) {
-    if (flight_control->pitch() == 1000) {
-      valueToWrite = 1900;
-    } else {
-      valueToWrite = 1000;
-    }
-  } else {
-    valueToWrite = flight_control->pitch();
-  }
-
-  flight_control->set_pitch(valueToWrite);
-  flight_control->set_roll(valueToWrite);
-  flight_control->set_yaw(valueToWrite);
-  flight_control->set_throttle(valueToWrite);
+void flightControlCallback(const monarc_uart_driver::FlightControl::ConstPtr& flightControl) {
+  monarcpb::NavCPUToSysCtrl_FlightControl* flightControlProto = nav_cpu_state.mutable_control();
+  flightControlProto->set_pitch(flightControl->pitch);
+  flightControlProto->set_roll(flightControl->roll);
+  flightControlProto->set_yaw(flightControl->yaw);
+  flightControlProto->set_throttle(flightControl->throttle);
 }
 
 struct command_line_params {
@@ -226,21 +216,12 @@ int main(int argc, char **argv) {
   /*
    * Subscribe to all necessary topics, each with a queue_size of 1
    */
-  ros::Subscriber sub = nh.subscribe("fix", 1, gpsFixCallback);
+  ros::Subscriber gpsSub  = nh.subscribe("fix", 1, gpsFixCallback);
+  ros::Subscriber ctrlSub = nh.subscribe("flight_control", 10, flightControlCallback);
 
   ros::Rate loop_rate(100);
 
-  int ok_count = 0;
-
   while (ros::ok()) {
-    ok_count++;
-
-    /*
-     * Write dummy command message data, changing every so often.
-    */
-    flightControlMessage(ok_count);
-    ok_count = (ok_count == 500) ? 0 : ok_count;
-
     /*
      * Process all callbacks, which will populate nav_cpu_state.
      */
@@ -251,6 +232,7 @@ int main(int argc, char **argv) {
      */
     std::string state_data;
     nav_cpu_state.SerializeToString(&state_data);
+    nav_cpu_state.Clear();
     uart.write(state_data);
 
     /*
