@@ -24,7 +24,7 @@ void uart_reader(UartHandler* uart) {
    */
   ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 100);
   ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("imu_data", 100);
-  ros::Publisher ultrasound_altitude_pub = nh.advertise<std_msgs::Int32>("ultrasound_altitude", 100);
+  ros::Publisher ultrasonic_altitude_pub = nh.advertise<std_msgs::Int32>("ultrasonic_altitude", 100);
   ros::Publisher nav_command_pub = nh.advertise<monarc_uart_driver::NavCommand>("nav_command", 100);
 
   while (ros::ok()) {
@@ -93,9 +93,9 @@ void uart_reader(UartHandler* uart) {
        * Read and publish ultrasonic altitude data
        */
       if (telemetry.altitude() != 0) {
-        std_msgs::Int32 ultrasound_altitude;
-        ultrasound_altitude.data = telemetry.altitude();
-        ultrasound_altitude_pub.publish(ultrasound_altitude);
+        std_msgs::Int32 ultrasonic_altitude;
+        ultrasonic_altitude.data = telemetry.altitude();
+        ultrasonic_altitude_pub.publish(ultrasonic_altitude);
       }
     }
 
