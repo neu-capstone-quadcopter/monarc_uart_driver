@@ -1,4 +1,4 @@
-int32 pitch = 1
-int32 roll = 2
-int32 yaw = 3
-int32 throttle = 4
+int32 pitch
+int32 roll
+int32 yaw
+int32 throttle
