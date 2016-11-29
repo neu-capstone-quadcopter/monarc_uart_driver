@@ -7,6 +7,7 @@
 
 #include "ros/ros.h"
 #include "std_msgs/Int32.h"
+#include "std_msgs/Bool.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/NavSatStatus.h"
@@ -152,6 +153,11 @@ void flightControlCallback(const monarc_uart_driver::FlightControl::ConstPtr& fl
   flightControlProto->set_throttle(flightControl->throttle);
 }
 
+void killCallback(const std_msgs::Bool::ConstPtr& kill) {
+  monarcpb::NavCPUToSysCtrl_ComputerState* computerStateProto = nav_cpu_state.mutable_state();
+  computerStateProto->set_kill(kill->data);
+}
+
 struct command_line_params {
   std::string uart_port;
   int baud_rate;
@@ -216,6 +222,7 @@ int main(int argc, char **argv) {
    */
   ros::Subscriber gpsSub  = nh.subscribe("fix", 1, gpsFixCallback);
   ros::Subscriber ctrlSub = nh.subscribe("flight_control", 10, flightControlCallback);
+  ros::Subscriber killSub = nh.subscribe("kill", 1, killCallback);
 
   ros::Rate loop_rate(100);
 
