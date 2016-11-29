@@ -23,10 +23,11 @@ void uart_reader(UartHandler* uart) {
   /*
    * Advertise on a group of topics.
    */
-  ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 100);
   ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("imu_data", 100);
+  ros::Publisher atmospheric_pressure_pub = nh.advertise<std_msgs::Int32>("atmospheric_pressure", 100);
   ros::Publisher ultrasonic_altitude_pub = nh.advertise<std_msgs::Int32>("ultrasonic_altitude", 100);
   ros::Publisher nav_command_pub = nh.advertise<monarc_uart_driver::NavCommand>("nav_command", 100);
+  ros::Publisher latest_flight_control_pub = nh.advertise<monarc_uart_driver::FlightControl>("flight_control/latest", 100);
 
   while (ros::ok()) {
     /*
@@ -54,15 +55,6 @@ void uart_reader(UartHandler* uart) {
 
     if (message.has_telemetry()) {
       const monarcpb::SysCtrlToNavCPU_Telemetry telemetry = message.telemetry();
-
-      /*
-       * Read and publish atmospheric pressure
-       */
-      if (telemetry.atmospheric_pressure() != 0) {
-          std_msgs::Int32 atmospheric_pressure;
-          atmospheric_pressure.data = telemetry.atmospheric_pressure();
-          atmospheric_pressure_pub.publish(atmospheric_pressure);
-      }
 
       /*
        * Read and publish all IMU data
@@ -95,12 +87,33 @@ void uart_reader(UartHandler* uart) {
       }
 
       /*
+       * Read and publish atmospheric pressure
+       */
+      if (telemetry.atmospheric_pressure() != 0) {
+          std_msgs::Int32 atmospheric_pressure;
+          atmospheric_pressure.data = telemetry.atmospheric_pressure();
+          atmospheric_pressure_pub.publish(atmospheric_pressure);
+      }
+
+      /*
        * Read and publish ultrasonic altitude data
        */
       if (telemetry.altitude() != 0) {
         std_msgs::Int32 ultrasonic_altitude;
         ultrasonic_altitude.data = telemetry.altitude();
         ultrasonic_altitude_pub.publish(ultrasonic_altitude);
+      }
+
+      /*
+       * Read and publish latest flight control data
+       */
+      if (telemetry.has_latest_control()) {
+        monarc_uart_driver::FlightControl latest_control;
+        latest_control.pitch    = telemetry.latest_control().pitch();
+        latest_control.roll     = telemetry.latest_control().roll();
+        latest_control.yaw      = telemetry.latest_control().yaw();
+        latest_control.throttle = telemetry.latest_control().throttle();
+        latest_flight_control_pub.publish(latest_control);
       }
     }
 
@@ -150,7 +163,7 @@ void gpsFixCallback(const sensor_msgs::NavSatFix::ConstPtr& navSatFix) {
 }
 
 void flightControlCallback(const monarc_uart_driver::FlightControl::ConstPtr& flightControl) {
-  monarcpb::NavCPUToSysCtrl_FlightControl* flightControlProto = nav_cpu_state.mutable_control();
+  monarcpb::FlightControl* flightControlProto = nav_cpu_state.mutable_control();
   flightControlProto->set_pitch(flightControl->pitch);
   flightControlProto->set_roll(flightControl->roll);
   flightControlProto->set_yaw(flightControl->yaw);
