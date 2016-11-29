@@ -72,9 +72,13 @@ void uart_reader(UartHandler* uart) {
 
         imu_data.header.stamp = time_stamp;
 
-        imu_data.orientation = tf::createQuaternionMsgFromRollPitchYaw((double) telemetry.magnetometer().x(),
-                                                                     (double) telemetry.magnetometer().y(),
-                                                                     (double) telemetry.magnetometer().z());
+//        imu_data.orientation = tf::createQuaternionMsgFromRollPitchYaw((double) telemetry.attitude().roll(),
+//                                                                     (double) telemetry.attitude().pitch(),
+//                                                                     (double) telemetry.attitude().yaw());
+        imu_data.orientation.x = (double) telemetry.attitude().roll();
+	imu_data.orientation.y = (double) telemetry.attitude().pitch();
+        imu_data.orientation.z = (double) telemetry.attitude().yaw();
+        imu_data.orientation.w = 1;
         imu_data.orientation_covariance[0] = -1;
 
         imu_data.angular_velocity.x = (double) telemetry.gyroscope().x();
