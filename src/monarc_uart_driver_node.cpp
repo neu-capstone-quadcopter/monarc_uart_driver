@@ -175,6 +175,11 @@ void killCallback(const std_msgs::Bool::ConstPtr& kill) {
   computerStateProto->set_kill(kill->data);
 }
 
+void softKillCallback(const std_msgs::Bool::ConstPtr& softKill) {
+    monarcpb::NavCPUToSysCtrl_ComputerState* computerStateProto = nav_cpu_state.mutable_state();
+    computerStateProto->set_soft_kill(softKill->data);
+}
+
 struct command_line_params {
   std::string uart_port;
   int baud_rate;
@@ -240,6 +245,7 @@ int main(int argc, char **argv) {
   ros::Subscriber gpsSub  = nh.subscribe("fix", 1, gpsFixCallback);
   ros::Subscriber ctrlSub = nh.subscribe("flight_control", 10, flightControlCallback);
   ros::Subscriber killSub = nh.subscribe("kill", 1, killCallback);
+  ros::Subscriber softKillSub = nh.subscribe("softKill", 1, softKillCallback);
 
   ros::Rate loop_rate(100);
 
